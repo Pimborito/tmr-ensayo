@@ -113,7 +113,11 @@ async function commit(next){
 async function commitAsistenciaLab(next,draft){
  if(busy||!ready||!labCurrent)return false;
  const before=getSession(draft.date,draft.turnId,state),after=getSession(draft.date,draft.turnId,next);
- if(!before||draft.date!=='2026-11-02'||draft.turnId!=='1'||draft.newGuests?.length||JSON.stringify(before.ratings||{})!==JSON.stringify(after.ratings||{})||before.note!==after.note||before.cancelled!==after.cancelled){alert('Esta prueba solo permite cambiar marcas sin modificar puntajes, notas ni invitados.');return false;}
+ const puntajesAntes=before?.ratings||{},puntajesDespues=after.ratings||{};
+ const quitados=Object.keys(puntajesAntes).filter(id=>!(id in puntajesDespues));
+ const cambiados=Object.keys(puntajesDespues).some(id=>puntajesDespues[id]!==puntajesAntes[id]);
+ if(!before||draft.date!=='2026-11-02'||draft.turnId!=='1'||draft.newGuests?.length||cambiados||quitados.some(id=>after.attendance[id]==='present')||before.note!==after.note||before.cancelled!==after.cancelled){alert('Esta prueba solo permite cambiar marcas sin modificar puntajes, notas ni invitados.');return false;}
+ if(quitados.length&&!confirm('Al cambiar la marca se quita el puntaje confirmado. ¿Continuar?'))return false;
  busy=true;document.querySelector('main').inert=true;document.querySelector('nav').inert=true;
  try{const row=await labPuente.guardar({revision:labRevision,marcas:after.attendance});aplicarEstadoLab(row);await contarLab();return true;}
  catch(e){alert('No se guardó: '+(e.message||'error')+'. Los cambios previos se conservan.');return false;}
