@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111c27">
+  <meta name="description" content="TMR: asistencias y parejas de tres turnos de tenis de mesa.">
+
+  <link rel="icon" type="image/png" href="assets/tmr-icon-192.png">
+  <link rel="apple-touch-icon" href="assets/tmr-icon-192.png">
+  <link rel="stylesheet" href="styles.css?v=1.19.9">
+  <link rel="stylesheet" href="app-theme.css?v=1.19.9">
+  <title>TMR · Asistencias</title>
+</head>
+<body>
+  <section id="lab-login" style="padding:18px;background:#2b333e;color:white"><h2>Ensayo TMR · Datos ficticios</h2><p>Iniciá sesión con tu cuenta de prueba.</p><form id="lab-login-form"><input id="lab-email" type="email" placeholder="Correo" autocomplete="username" required><input id="lab-password" type="password" placeholder="Contraseña" autocomplete="current-password" required><button type="submit">Ingresar</button></form><p id="lab-login-message" role="status"></p></section>
+  <section id="lab-controls" hidden style="padding:14px;background:#2b333e;color:white"><strong>ENSAYO · SOLO DATOS FICTICIOS</strong><button type="button" id="lab-send">Enviar pendientes</button><button type="button" id="lab-update">Actualizar datos</button><button type="button" id="lab-review">Revisar conflicto</button><div id="lab-conflict" hidden><p id="lab-conflict-text"></p><button type="button" id="lab-local">Conservar mi cambio</button><button type="button" id="lab-remote">Conservar marca de Supabase</button></div><button type="button" id="lab-exit">Salir de esta página</button><p id="lab-status" role="status"></p></section>
+  <header class="topbar">
+    <button type="button" id="menu-open" class="menu-open" aria-label="Abrir menú" aria-haspopup="dialog" aria-controls="menu-dialog"><span></span><span></span><span></span></button>
+    <h1 class="sr-only">TMR</h1>
+    <div class="brand-mark"><img src="assets/escudo-tmr-transparente.png" alt="TMR" width="72" height="72"></div>
+    <span id="connection" class="pill">Comprobando…</span>
+  </header>
+
+  <main>
+    <section class="turn-panel" aria-label="Turno de trabajo">
+      <label for="turn-selector">Turno de trabajo</label>
+      <select id="turn-selector"><option value="3">Turno 3 · 19:00 a 21:00</option></select>
+      <p id="turn-context" class="hint">Lunes, miércoles y viernes</p>
+    </section>
+    <p id="app-message" class="hint danger" role="status"></p>
+    <section id="view-home" class="view active">
+      <div class="page-head"><p class="eyebrow">EL CLUB, DE UN VISTAZO</p><h2>Listos para entrenar.</h2></div>
+      <div class="stats-grid home-summary">
+        <article class="stat"><span>Jugadores activos</span><strong id="total-players">0</strong></article>
+        <article class="stat"><span>Sesiones del mes</span><strong id="total-sessions">0</strong></article>
+      </div>
+      <div class="home-dashboard">
+        <section class="panel home-upcoming"><div class="panel-head"><h3>Próximo entrenamiento</h3></div><div id="next-session" class="next-session"></div></section>
+      </div>
+      <section id="followup-notice" class="panel followup-notice" aria-labelledby="followup-notice-title" hidden>
+        <h3 id="followup-notice-title">Seguimiento de faltas</h3>
+        <p id="followup-notice-text" class="hint" role="status"></p>
+        <div class="quick-actions"><button class="secondary" type="button" data-nav="followup">Ver jugadores</button><button id="followup-notice-hide" class="secondary" type="button">Ocultar aviso</button></div>
+      </section>
+      <section class="panel"><h3>Último entrenamiento</h3><div id="last-session-content"></div></section>
+    </section>
+
+    <section id="view-attendance" class="view">
+      <div class="page-head"><div><p class="eyebrow">REGISTRO DIARIO</p><h2>Pasar asistencia</h2></div></div>
+      <div class="panel">
+        <label for="session-date">Fecha del entrenamiento</label>
+        <input id="session-date" type="date">
+        <details id="plan-panel" class="day-move-panel">
+          <summary>Plan del entrenamiento</summary>
+          <p id="plan-context" class="hint"></p>
+          
+          <label class="file-button"><span id="plan-file-label">Subir imagen</span><input id="plan-file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <img id="plan-thumbnail" class="plan-thumbnail" alt="Vista previa de la planificación" hidden>
+          <button id="plan-view" type="button" class="secondary full" hidden>Ver imagen ampliada</button>
+          <label for="plan-observation">Qué se hizo / observaciones</label>
+          <textarea id="plan-observation" rows="3" maxlength="2000" placeholder="Ej.: Partidos libres. O cambios respecto del plan de la imagen."></textarea>
+          <h3 class="plan-exercises-title">Ejercicios del plan</h3>
+          <div id="plan-exercise-list"></div>
+          <p id="plan-exercise-total" class="hint"></p>
+          <button id="plan-exercise-open" type="button" class="secondary full">＋ Agregar ejercicio</button>
+          <button id="plan-copy-open" type="button" class="secondary full">Copiar ejercicios de otra fecha</button>
+          <button id="plan-save" type="button" class="primary full" disabled>Guardar plan</button>
+          <button id="plan-discard" type="button" class="secondary full quiet-action">Descartar cambios del plan</button>
+          <button id="plan-remove" type="button" class="secondary full danger" hidden>Eliminar plan</button>
+          <p id="plan-message" class="hint" role="status"></p>
+        </details>
+        <div class="attendance-tools">
+          
+          <button id="clear-attendance" class="secondary">Limpiar marcas</button>
+        </div>
+        <div id="attendance-summary" class="attendance-summary" role="status" aria-live="polite" aria-atomic="true"></div>
+        <p id="attendance-summary-note" class="hint"></p>
+        <div id="attendance-list" class="player-list"></div>
+        <label for="session-note">Nota de la sesión (opcional)</label>
+        <textarea id="session-note" rows="2" placeholder="Ej.: entrenamiento suspendido, torneo, etc."></textarea>
+        <label class="check-row"><input id="session-cancelled" type="checkbox"> Esta sesión fue cancelada (no cuenta como falta)</label>
+        <button id="save-attendance" class="primary full">Guardar asistencia</button>
+        <button id="discard-attendance" class="secondary full quiet-action">Descartar cambios de asistencia</button>
+        <p id="save-message" class="hint" role="status"></p>
+        <details id="guest-panel" class="guest-panel">
+          <summary>+ Agregar invitado por el día</summary>
+          <p id="guest-context" class="hint"></p>
+          
+          <form id="guest-form">
+            <label for="guest-existing">Nuevo, invitado anterior o jugador inactivo</label>
+            <select id="guest-existing"></select>
+            <div id="guest-name-field"><label for="guest-name">Nombre y apellido del invitado</label><input id="guest-name" maxlength="100" autocomplete="off" placeholder="Ej.: Juan Pérez"></div>
+            <button id="guest-add" type="submit" class="secondary full">Agregar a la lista de este día</button>
+          </form>
+          <p id="guest-message" class="hint" role="status"></p>
+          <p class="hint">Tocá Guardar asistencia para conservar los invitados y las marcas. Si un jugador activo viene a otro horario, usá Cambio de turno por esta fecha.</p>
+        </details>
+        <details id="day-move-panel" class="day-move-panel">
+          <summary>Cambio de turno por esta fecha</summary>
+          
+          <label for="day-player">Jugador (de cualquier turno)</label><select id="day-player"></select>
+          <label for="day-destination">Turno al que viene en esta fecha</label><select id="day-destination"></select>
+          <button id="day-apply" class="secondary full">Aplicar cambio solo por esta fecha</button>
+          <p id="day-message" class="hint" role="status"></p>
+          <div id="day-changes" class="hint"></div>
+          
+        </details>
+      </div>
+    </section>
+
+    <section id="view-ratings" class="view">
+      <div class="page-head"><p class="eyebrow">REGISTRO DIARIO</p><h2>Puntuar entrenamiento</h2></div>
+      <div class="panel"><label for="ratings-date">Fecha del entrenamiento</label><input id="ratings-date" type="date">
+        <p id="ratings-info" class="hint" role="status"></p><div id="ratings-list" class="player-list"></div>
+        <button id="ratings-save" class="primary full" type="button">Guardar puntajes</button>
+        <button id="ratings-discard" class="secondary full quiet-action" type="button">Descartar cambios</button>
+        <p id="ratings-message" class="hint" role="status"></p>
+      </div>
+    </section>
+    <section id="view-followup" class="view">
+      <button type="button" class="secondary profile-back" data-nav="players">← Volver a jugadores</button>
+      <div class="page-head"><p class="eyebrow">TODOS LOS TURNOS</p><h2>Seguimiento de faltas</h2></div>
+      <section class="panel followup-panel" aria-labelledby="followup-title">
+        <div class="panel-head"><h3 id="followup-title">Jugadores para revisar</h3><span id="followup-count" class="followup-count">0</span></div>
+        <label for="followup-threshold">Avisar desde</label>
+        <select id="followup-threshold"><option value="1">1 falta seguida</option><option value="2">2 faltas seguidas</option><option value="3" selected>3 faltas seguidas</option><option value="4">4 faltas seguidas</option><option value="5">5 faltas seguidas</option><option value="6">6 faltas seguidas</option><option value="7">7 faltas seguidas</option><option value="8">8 faltas seguidas</option><option value="9">9 faltas seguidas</option><option value="10">10 faltas seguidas</option></select>
+        <p id="followup-setting-message" class="hint" role="status"></p>
+        <p id="followup-summary" class="hint" role="status"></p>
+        <div id="followup-list"></div>
+        <button id="followup-expand" type="button" class="secondary full" aria-expanded="false" aria-controls="followup-list" hidden>Ver todos</button>
+        
+      </section>
+    </section>
+
+    <section id="view-players" class="view">
+      <div class="page-head"><div><p class="eyebrow">PADRÓN</p><h2>Jugadores</h2></div></div>
+      <button type="button" class="secondary full followup-entry" data-nav="followup">Seguimiento de faltas · todos los turnos →</button>
+      <section class="panel" aria-labelledby="player-search-title">
+        <h3 id="player-search-title">Buscar jugador</h3>
+        <label for="player-search">Nombre o apellido · todos los turnos</label>
+        <input id="player-search" type="search" maxlength="100" autocomplete="off" enterkeyhint="search" placeholder="Ej.: Juan o Pérez">
+        <button id="player-search-clear" class="secondary full" type="button" hidden>Limpiar búsqueda</button>
+        <details id="player-search-date-panel" class="search-date-options" hidden>
+          <summary>Fecha para cambiar turno: <span id="player-search-date-summary"></span></summary>
+          <label for="player-search-date">Fecha para un cambio de turno</label>
+          <input id="player-search-date" type="date">
+          
+        </details>
+        <p id="player-search-message" class="hint" role="status"></p>
+        <div id="player-search-results" class="player-list"></div>
+      </section>
+      <section class="panel">
+        <div class="panel-head"><h3>Jugadores del turno</h3><span id="player-count" class="muted">0</span></div>
+        <div id="players-list" class="player-list"></div>
+        <p id="player-message" class="hint" role="status"></p>
+        <details id="guest-catalog-panel" class="day-move-panel">
+          <summary>Invitados anteriores <span id="guest-catalog-count" class="muted"></span></summary>
+          
+          <div id="guest-catalog" class="player-list"></div>
+        </details>
+      </section>
+      <section id="player-edit-panel" class="panel" hidden>
+        <form id="player-edit-form">
+          <h3>Editar datos del jugador</h3>
+          
+          <label for="player-edit-name">Nombre y apellido</label>
+          <input id="player-edit-name" required maxlength="100" autocomplete="off">
+          <label for="player-edit-turn">Turno habitual</label><select id="player-edit-turn"></select>
+          <p id="player-edit-message" class="hint danger" role="alert"></p>
+          <div class="quick-actions">
+            <button id="save-player-name" class="primary" type="submit">Guardar cambios</button>
+            <button id="cancel-player-edit" class="secondary" type="button">Cancelar</button>
+          </div>
+        </form>
+      </section>
+      <details class="panel add-player-panel">
+        <summary>+ Agregar jugador</summary>
+        <form id="player-form">
+        <label for="player-name">Nombre y apellido</label>
+        <input id="player-name" required maxlength="100" placeholder="Ej.: Juan Pérez">
+        <label for="player-turn">Turno habitual</label><select id="player-turn"></select>
+        <button class="primary full" type="submit">＋ Agregar jugador</button>
+        </form>
+      </details>
+    </section>
+    <section id="view-player" class="view">
+      <button class="secondary profile-back" data-nav="players">← Volver a jugadores</button>
+      <div class="page-head"><p class="eyebrow">FICHA INDIVIDUAL</p><h2 id="player-profile-name"></h2><p id="player-profile-state" class="hint"></p></div>
+      <div class="panel">
+        <label for="player-profile-month">Mes a consultar</label>
+        <input id="player-profile-month" type="month">
+        <div id="player-profile-summary" class="stats-grid"></div>
+        <p id="player-profile-unmarked" class="hint" role="status"></p>
+      </div>
+      <section class="panel" id="player-history-panel">
+        <h3>Historial del mes</h3>
+        <div id="player-profile-history" class="history-list"></div>
+      </section>
+      <section class="panel" aria-labelledby="partner-title">
+        <div class="panel-head"><h3 id="partner-title">Con quién entrena</h3></div>
+        <div class="partner-filters"><div><label for="partner-period">Período</label><select id="partner-period"><option value="all">Todo el historial</option><option value="month">Mes de la ficha</option></select></div><div><label for="partner-turn">Turnos</label><select id="partner-turn"><option value="all">Todos los turnos</option><option value="current">Turno seleccionado</option></select></div></div>
+        <p id="partner-context" class="hint"></p>
+        <div id="partner-list"></div><h3 class="activity-stats-title">Actividades</h3><div id="activity-stats"></div>
+        </section>
+      <details id="training-notes-panel" class="panel training-notes-panel">
+        <summary>Notas de entrenamiento <span id="training-notes-count" class="muted"></span></summary>
+        
+        <form id="training-note-form">
+          <h3 id="training-note-heading">Agregar nota</h3>
+          <label for="training-note-date">Fecha</label><input id="training-note-date" type="date" required>
+          <label for="training-note-text">Nota</label>
+          <textarea id="training-note-text" rows="3" required maxlength="2000" placeholder="Ej.: Trabajar recepción de saque. Mejoró el revés."></textarea>
+          <div class="quick-actions full">
+            <button id="training-note-save" class="primary" type="submit">Guardar nota</button>
+            <button id="training-note-cancel" class="secondary" type="button">Cancelar</button>
+          </div>
+        </form>
+        <p id="training-note-message" class="hint" role="status"></p>
+        <div id="training-notes-list" class="history-list"></div>
+      </details>
+      <section id="guest-promotion" class="panel" hidden>
+        <h3>Convertir en jugador habitual</h3>
+        
+        <label for="guest-regular-turn">Turno habitual</label><select id="guest-regular-turn"></select>
+        <button id="guest-promote" type="button" class="primary full">Convertir en habitual</button>
+        <p id="guest-promotion-message" class="hint" role="status"></p>
+      </section>
+    </section>
+
+    <section id="view-pairs" class="view">
+      <div class="page-head"><p class="eyebrow">ENTRENAMIENTO EN PAREJA</p><h2>Parejas</h2></div>
+      <div class="panel">
+        <label for="pairs-date">Fecha del entrenamiento</label>
+        <input id="pairs-date" type="date">
+        <button id="pairs-previous" class="secondary full">← Ver entrenamiento anterior de este turno</button>
+        <p id="pairs-info" class="hint"></p>
+        <button id="pairs-attendance" class="secondary full">Ir a asistencia de esta fecha</button>
+        <div id="pairs-list" class="player-list"></div>
+        <div id="activity-readonly" class="activity-readonly"></div>
+        <div id="pairs-editor">
+          <h3>Armar una pareja</h3>
+          <label for="pairs-first">Primer jugador</label><select id="pairs-first"></select>
+          <p id="pairs-first-memory" class="hint pair-memory" role="status"></p>
+          <label for="pairs-second">Segundo jugador</label><select id="pairs-second"></select>
+          <p id="pairs-second-memory" class="hint pair-memory" role="status"></p>
+          <p id="pairs-repeat-warning" class="pair-repeat-warning" role="status" hidden></p>
+          <button id="pairs-add" class="secondary full">＋ Agregar pareja</button>
+          <p id="pairs-unassigned" class="hint"></p>
+          <h3>Actividades</h3><div id="activity-summary"></div>
+          <details class="activity-picker"><summary>Multibolas</summary><div id="activity-multiball" class="activity-options"></div></details>
+          <details class="activity-picker"><summary>Reboteador</summary><div id="activity-rebounder" class="activity-options"></div></details>
+          <details class="activity-picker"><summary>Saques</summary><div id="activity-serves" class="activity-options"></div></details>
+          <label for="pairs-note">Nota sobre las parejas (opcional)</label>
+          <textarea id="pairs-note" rows="3" maxlength="2000" placeholder="Ej.: En la segunda parte, Juan entrenó con Pedro."></textarea>
+          <button id="pairs-save" class="primary full">Guardar parejas</button>
+          <button id="pairs-discard" class="secondary full quiet-action">Descartar cambios</button>
+        </div>
+        <p id="pairs-message" class="hint profile-note" role="status"></p>
+      </div>
+    </section>
+
+    <section id="view-history" class="view">
+      <div class="page-head"><div><p class="eyebrow">REGISTROS</p><h2>Historial</h2></div></div>
+      <div class="panel">
+        <label for="history-month">Mes a consultar</label>
+        <input id="history-month" type="month">
+        <div id="history-list" class="history-list"></div>
+      </div>
+    </section>
+
+    <section id="view-stats" class="view">
+      <div class="page-head"><div><p class="eyebrow">RESUMEN MENSUAL</p><h2>Estadísticas</h2></div></div>
+      <div class="panel">
+        <label for="stats-month">Mes a consultar</label>
+        <input id="stats-month" type="month">
+        
+        <div id="stats-summary" class="stats-grid"></div>
+        
+        <label for="stats-search">Buscar jugador</label>
+        <input id="stats-search" type="search" maxlength="100" autocomplete="off" placeholder="Nombre o apellido">
+        <p id="stats-search-message" class="hint" role="status"></p>
+        <div class="table-wrap stats-table-desktop"><table><thead><tr><th>Jugador</th><th>Pres.</th><th>Faltas</th><th>Just.</th><th>%</th><th>Promedio /10</th><th>Puntuadas / presentes</th></tr></thead><tbody id="stats-table"></tbody></table></div>
+        <div id="stats-cards" class="stats-cards"></div>
+        <button id="export-csv" class="secondary full">Exportar estadísticas CSV</button>
+        <p id="stats-export-message" class="hint" role="status"></p>
+      </div>
+    </section>
+
+    <section id="view-exercises" class="view">
+      <div class="page-head"><p class="eyebrow">PLANIFICACIÓN</p><h2>Ejercicios</h2></div>
+      <div class="panel">
+        <label for="exercise-search">Buscar ejercicio</label>
+        <input id="exercise-search" type="search" autocomplete="off" placeholder="Título, objetivo o categoría">
+        <div id="exercise-filters" class="quick-actions"></div>
+        <p id="exercise-count" class="hint"></p>
+        <div id="exercise-list" class="player-list"></div>
+        <button id="exercise-new" type="button" class="primary full">＋ Nuevo ejercicio</button>
+        
+      </div>
+    </section>
+
+    <section id="view-settings" class="view">
+      <div class="page-head"><div><p class="eyebrow">DATOS Y COPIAS</p><h2>Configuración</h2></div></div>
+      <section class="panel">
+        <h3>Avisos de Inicio</h3>
+        <label class="check-row"><input id="followup-notice-enabled" type="checkbox" checked> Mostrar aviso de faltas en Inicio</label>
+        
+        <p id="followup-notice-setting-message" class="hint" role="status"></p>
+      </section>
+      <div class="panel">
+        <h3>Respaldo de datos</h3>
+        <p class="hint">Los datos se guardan en este dispositivo y todavía no se sincronizan. Guardá tu copia en un lugar seguro.</p>
+        <p class="hint">Las copias de esta versión requieren TMR 1.19.8 o superior.</p>
+        <button id="export-json" class="secondary full">Descargar copia de seguridad</button>
+        <label class="file-button">Restaurar copia JSON<input id="import-json" type="file" accept="application/json"></label>
+        <p id="backup-message" class="hint" role="status"></p>
+      </div>
+      <div class="panel">
+        <h3>Funcionamiento sin internet</h3>
+        <p class="hint">Versión 1.19.8 · Web</p>
+        
+      </div>
+      <div class="panel">
+        <h3>Horarios de entrenamiento</h3>
+        <p>Lunes, miércoles y viernes.</p><p>Turno 1: 15 a 17 · Turno 2: 17 a 19 · Turno 3: 19 a 21.</p>
+        
+      </div>
+    </section>
+  </main>
+
+  <dialog id="rating-dialog" aria-labelledby="rating-title" aria-describedby="rating-context">
+    <div class="dialog-heading"><h2 id="rating-title">Puntaje del entrenamiento</h2><button id="rating-close" type="button" class="secondary" aria-label="Cerrar puntaje">✕</button></div>
+    <p id="rating-context" class="hint"></p>
+    <div id="rating-options" class="rating-grid"></div><button id="rating-clear" type="button" class="secondary full">Dejar sin puntaje</button>
+    <p class="hint">Tocá Guardar puntajes para conservar los cambios.</p>
+  </dialog>
+  <dialog id="attendance-pending-dialog" aria-labelledby="attendance-pending-title" aria-describedby="attendance-pending-text">
+    <h2 id="attendance-pending-title">Quedan jugadores sin marcar</h2>
+    <p id="attendance-pending-context" class="hint"></p>
+    <p id="attendance-pending-text"></p>
+    <p id="attendance-pending-names" class="hint"></p>
+    <div class="pending-actions">
+      <button id="attendance-pending-complete" class="secondary" type="button">Volver a completar</button>
+      <button id="attendance-pending-save" class="primary" type="button">Guardar igual</button>
+    </div>
+  </dialog>
+
+  <dialog id="plan-viewer" aria-labelledby="plan-viewer-title">
+    <h2 id="plan-viewer-title"></h2>
+    <div class="quick-actions"><button id="plan-zoom" class="secondary" type="button">Ampliar</button><button id="plan-viewer-close" class="primary" type="button">Cerrar</button></div>
+    <div id="plan-viewer-scroll"><img id="plan-viewer-image" alt="Plan del entrenamiento"></div>
+    <p id="plan-viewer-observation" class="profile-note"></p>
+  </dialog>
+  <dialog id="plan-copy-dialog" aria-labelledby="plan-copy-title">
+    <div class="dialog-heading"><h2 id="plan-copy-title">Copiar ejercicios de otra fecha</h2><button id="plan-copy-close" type="button" class="secondary" aria-label="Cerrar">✕</button></div>
+    <p class="hint">Reemplaza los ejercicios de este plan. La observación y la imagen no cambian.</p>
+    <div id="plan-copy-list" class="player-list"></div>
+  </dialog>
+
+  <dialog id="exercise-form-dialog" aria-labelledby="exercise-form-heading">
+    <div class="dialog-heading"><h2 id="exercise-form-heading">Nuevo ejercicio</h2></div>
+    <form id="exercise-form">
+      <label for="exercise-title">Título (obligatorio, hasta 100 caracteres)</label>
+      <input id="exercise-title" maxlength="100" autocomplete="off" placeholder="Ej.: Drive cruzado en mesa">
+      <label for="exercise-goal">Objetivo (opcional)</label>
+      <input id="exercise-goal" maxlength="100" autocomplete="off" placeholder="Ej.: Mejorar el drive de revés">
+      <label for="exercise-desc">Descripción (opcional)</label>
+      <textarea id="exercise-desc" rows="4" maxlength="2000" placeholder="Cómo se hace, repeticiones, variantes"></textarea>
+      <label for="exercise-dur">Duración en minutos (opcional, de 1 a 240)</label>
+      <input id="exercise-dur" type="number" min="1" max="240" inputmode="numeric" placeholder="Ej.: 10">
+      <label for="exercise-cats">Categorías (opcional, separadas por coma, hasta 5)</label>
+      <input id="exercise-cats" maxlength="200" autocomplete="off" placeholder="Ej.: ataque, calentamiento">
+      <label class="file-button"><span id="exercise-file-label">Subir imagen</span><input id="exercise-file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+      <img id="exercise-thumb" class="plan-thumbnail" alt="Vista previa del ejercicio" hidden>
+      <button id="exercise-image-remove" type="button" class="secondary full danger" hidden>Quitar imagen</button>
+      <p id="exercise-form-message" class="hint" role="status"></p>
+      <button id="exercise-save" type="submit" class="primary full">Guardar ejercicio</button>
+      <button id="exercise-cancel" type="button" class="secondary full">Cancelar</button>
+    </form>
+  </dialog>
+
+  <dialog id="exercise-detail" aria-labelledby="exercise-detail-title">
+    <div class="dialog-heading"><h2 id="exercise-detail-title"></h2><button id="exercise-detail-close" type="button" class="secondary" aria-label="Cerrar ficha">✕</button></div>
+    <p id="exercise-detail-info" class="hint"></p>
+    <img id="exercise-detail-image" class="plan-thumbnail" alt="Imagen del ejercicio" hidden>
+    <p id="exercise-detail-desc" class="profile-note"></p>
+    <p id="exercise-detail-use" class="hint"></p>
+    <button id="exercise-detail-edit" type="button" class="primary full">Editar</button>
+    <button id="exercise-detail-delete" type="button" class="secondary full danger">Eliminar ejercicio</button>
+  </dialog>
+
+  <dialog id="exercise-picker" aria-labelledby="exercise-picker-title">
+    <div class="dialog-heading"><h2 id="exercise-picker-title">Agregar ejercicio al plan</h2><button id="exercise-picker-close" type="button" class="secondary" aria-label="Cerrar selector">✕</button></div>
+    <label for="exercise-picker-search">Buscar en la biblioteca</label>
+    <input id="exercise-picker-search" type="search" autocomplete="off" placeholder="Título, objetivo o categoría">
+    <div id="exercise-picker-list" class="player-list"></div>
+    <p class="hint">Guardá el plan después de agregar los ejercicios.</p>
+  </dialog>
+  <dialog id="menu-dialog" aria-labelledby="menu-title">
+    <div class="menu-heading"><h2 id="menu-title">Menú</h2><button type="button" id="menu-close" aria-label="Cerrar menú">×</button></div>
+    <nav class="side-nav" aria-label="Navegación principal">
+      <button type="button" data-nav="home" class="active">Inicio</button>
+      <button type="button" data-nav="attendance">Lista de asistencia</button>
+      <button type="button" data-nav="ratings">Puntuar entrenamiento</button>
+      <button type="button" data-nav="players">Jugadores</button>
+      <button type="button" data-nav="pairs">Parejas</button>
+      <button type="button" data-nav="exercises">Ejercicios</button>
+      <button type="button" data-nav="stats">Estadísticas</button>
+      <button type="button" data-nav="history">Historial</button>
+      <button type="button" data-nav="settings">Configuración</button>
+    </nav>
+  </dialog>
+  <script src="supabase-lab.js?v=puntos-1"></script><script src="almacen-cola-integrado.js?v=puntos-2"></script><script src="puente-cola-lab.js?v=puntos-2"></script><script src="app.js?v=puntos-1"></script>
+  </body>
+</html>
